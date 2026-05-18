@@ -16,8 +16,10 @@ public class MyHashMap<Key, Value> {
     }
 
     private static final int DEFAULT_CAPACITY = 16;
+    private static final double LOAD_FACTOR = 0.75;
 
     private Entry<Key, Value>[] table;
+    private int size;
 
     @SuppressWarnings("unchecked")
     public MyHashMap() {
@@ -25,13 +27,21 @@ public class MyHashMap<Key, Value> {
     }
 
     private int getIndex(Key key) {
-        return Math.abs(Objects.hashCode(key)) % table.length;
+        return getIndex(key, table.length);
+    }
+
+    private int getIndex(Key key, int tableLength) {
+        return (Objects.hashCode(key) & 0x7fffffff) % tableLength;
     }
 
     /**
      * Добавление или обновление значения
      */
     public void put(Key key, Value value) {
+        if ((size + 1) > table.length * LOAD_FACTOR) {
+            resize();
+        }
+
         int index = getIndex(key);
 
         Entry<Key, Value> current = table[index];
@@ -39,6 +49,7 @@ public class MyHashMap<Key, Value> {
         // Если корзина пустая
         if (current == null) {
             table[index] = new Entry<>(key, value);
+            size++;
             return;
         }
 
@@ -57,6 +68,25 @@ public class MyHashMap<Key, Value> {
 
         // Добавление в конец списка
         prev.next = new Entry<>(key, value);
+        size++;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void resize() {
+        Entry<Key, Value>[] oldTable = table;
+        table = new Entry[oldTable.length * 2];
+
+        for (Entry<Key, Value> entry : oldTable) {
+            while (entry != null) {
+                Entry<Key, Value> next = entry.next;
+                int newIndex = getIndex(entry.key, table.length);
+
+                entry.next = table[newIndex];
+                table[newIndex] = entry;
+
+                entry = next;
+            }
+        }
     }
 
     /**
@@ -97,6 +127,7 @@ public class MyHashMap<Key, Value> {
                     prev.next = current.next;
                 }
 
+                size--;
                 return current.value;
             }
 
@@ -122,5 +153,23 @@ public class MyHashMap<Key, Value> {
 
         map.remove("two");
         System.out.println(map.get("two")); // null
+
+        //чек resize
+        MyHashMap<Integer, String> resizeMap = new MyHashMap<>();
+
+        for (int i = 0; i < 100; i++) {
+            resizeMap.put(i, "value-" + i);
+        }
+
+        boolean resizeWorks = true;
+
+        for (int i = 0; i < 100; i++) {
+            if (!Objects.equals(resizeMap.get(i), "value-" + i)) {
+                resizeWorks = false;
+                break;
+            }
+        }
+
+        System.out.println(resizeWorks); // true
     }
 }
