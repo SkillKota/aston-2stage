@@ -1,7 +1,7 @@
 package homework2.console;
 
-import homework2.dao.UserDao;
 import homework2.entity.User;
+import homework2.service.UserService;
 import org.hibernate.HibernateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +15,11 @@ public class ConsoleMenu {
     private static final Logger logger = LoggerFactory.getLogger(ConsoleMenu.class);
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w.!#$%&'*+/=?`{|}~^-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
 
-    private final UserDao userDao;
+    private final UserService userService;
     private final Scanner scanner = new Scanner(System.in);
 
-    public ConsoleMenu(UserDao userDao) {
-        this.userDao = userDao;
+    public ConsoleMenu(UserService userService) {
+        this.userService = userService;
     }
 
     public void run() {
@@ -69,18 +69,18 @@ public class ConsoleMenu {
         String email = readEmail("Email: ");
         int age = readPositiveInt("Возраст: ");
 
-        User user = userDao.create(new User(name, email, age));
+        User user = userService.createUser(name, email, age);
         System.out.println("Пользователь создан: " + user);
     }
 
     private void findUserById() {
         long id = readLong("Id пользователя: ");
-        Optional<User> user = userDao.findById(id);
+        Optional<User> user = userService.findUserById(id);
         System.out.println(user.map(Object::toString).orElse("Пользователь не найден"));
     }
 
     private void printAllUsers() {
-        List<User> users = userDao.findAll();
+        List<User> users = userService.findAllUsers();
         if (users.isEmpty()) {
             System.out.println("Пользователи не найдены");
             return;
@@ -90,23 +90,19 @@ public class ConsoleMenu {
 
     private void updateUser() {
         long id = readLong("Id пользователя: ");
-        Optional<User> existingUser = userDao.findById(id);
-        if (existingUser.isEmpty()) {
-            System.out.println("Пользователь не найден");
-            return;
-        }
+        String name = readRequiredString("Новое имя: ");
+        String email = readEmail("Новый email: ");
+        int age = readPositiveInt("Новый возраст: ");
 
-        User user = existingUser.get();
-        user.setName(readRequiredString("Новое имя: "));
-        user.setEmail(readEmail("Новый email: "));
-        user.setAge(readPositiveInt("Новый возраст: "));
-
-        System.out.println("Пользователь обновлен: " + userDao.update(user));
+        Optional<User> updatedUser = userService.updateUser(id, name, email, age);
+        System.out.println(updatedUser
+                .map(user -> "Пользователь обновлен: " + user)
+                .orElse("Пользователь не найден"));
     }
 
     private void deleteUser() {
         long id = readLong("Id пользователя: ");
-        boolean deleted = userDao.deleteById(id);
+        boolean deleted = userService.deleteUser(id);
         System.out.println(deleted ? "Пользователь удален" : "Пользователь не найден");
     }
 

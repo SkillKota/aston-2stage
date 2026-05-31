@@ -87,12 +87,15 @@ public class UserDaoImpl implements UserDao {
             T result = callback.execute(session);
             transaction.commit();
             return result;
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             if (transaction != null && transaction.isActive()) {
                 transaction.rollback();
             }
             logger.error("Database transaction failed", e);
-            throw e;
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new RuntimeException("Database transaction failed", e);
         }
     }
 

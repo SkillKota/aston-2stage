@@ -27,5 +27,20 @@ services:
     stdin_open: true
     tty: true
 
+  tests:
+    image: maven:3.9.8-eclipse-temurin-21
+    working_dir: /app
+    command: mvn test
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_API_VERSION: "1.54"
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    volumes:
+      - .:/app
+      - ${HOME}/.docker/run/docker.sock:/var/run/docker.sock
+      - maven_repo:/root/.m2
+
 volumes:
   postgres_data:
+  maven_repo:

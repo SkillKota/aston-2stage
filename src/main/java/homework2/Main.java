@@ -4,6 +4,8 @@ import homework2.config.HibernateUtil;
 import homework2.console.ConsoleMenu;
 import homework2.dao.UserDao;
 import homework2.dao.UserDaoImpl;
+import homework2.service.UserService;
+import homework2.service.UserServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +17,8 @@ public class Main {
 
         try {
             UserDao userDao = new UserDaoImpl(HibernateUtil.getSessionFactory());
-            new ConsoleMenu(userDao).run();
+            UserService userService = new UserServiceImpl(userDao);
+            new ConsoleMenu(userService).run();
         } finally {
             HibernateUtil.shutdown();
             logger.info("User-service stopped");

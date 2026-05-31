@@ -1,6 +1,6 @@
 # AstonStudyV2
 
-## Домашнее задание 2: User Service
+## Домашнее задание 3: User Service
 
 Консольное Java-приложение для управления пользователями. Приложение использует Hibernate ORM и PostgreSQL без Spring.
 
@@ -12,6 +12,9 @@
 - PostgreSQL 16
 - Docker Compose
 - SLF4J + Logback
+- JUnit 5
+- Mockito
+- Testcontainers
 
 Локально устанавливать Maven и PostgreSQL не нужно. Maven используется внутри Docker-образа при сборке приложения, а PostgreSQL запускается в отдельном контейнере.
 
@@ -31,6 +34,16 @@ docker compose run --rm app
 
 При запуске приложения Docker Compose автоматически поднимает PostgreSQL, если контейнер с базой еще не запущен.
 
+## Тесты
+
+Запустить unit- и integration-тесты:
+
+```bash
+docker compose run --rm tests
+```
+
+Тесты DAO-слоя используют Testcontainers и поднимают отдельный PostgreSQL-контейнер. Тесты service-слоя используют Mockito и не подключаются к базе данных.
+
 ## Остановка
 
 Остановить контейнеры:
@@ -49,6 +62,7 @@ docker compose down -v
 
 - `app` - консольное Java-приложение `user-service`
 - `postgres` - база данных PostgreSQL 16
+- `tests` - запуск тестов через Maven
 
 Настройки подключения к базе передаются в приложение через переменные окружения в `docker-compose.yml`:
 
@@ -93,8 +107,14 @@ src/main/java/homework2
   dao/UserDao.java
   dao/UserDaoImpl.java
   entity/User.java
+  service/UserService.java
+  service/UserServiceImpl.java
 
 src/main/resources
   hibernate.cfg.xml
   logback.xml
+
+src/test/java/homework2
+  dao/UserDaoImplTest.java
+  service/UserServiceImplTest.java
 ```
