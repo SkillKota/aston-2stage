@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class UserDaoImpl implements UserDao {
@@ -17,11 +18,13 @@ public class UserDaoImpl implements UserDao {
     private final SessionFactory sessionFactory;
 
     public UserDaoImpl(SessionFactory sessionFactory) {
-        this.sessionFactory = sessionFactory;
+        this.sessionFactory = Objects.requireNonNull(sessionFactory, "SessionFactory не должен быть null");
     }
 
     @Override
     public User create(User user) {
+        Objects.requireNonNull(user, "Пользователь не должен быть null");
+
         return executeInTransaction(session -> {
             session.persist(user);
             logger.info("Created user with email={}", user.getEmail());
@@ -31,6 +34,8 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public Optional<User> findById(Long id) {
+        Objects.requireNonNull(id, "Id пользователя не должен быть null");
+
         try (Session session = sessionFactory.openSession()) {
             return Optional.ofNullable(session.find(User.class, id));
         } catch (HibernateException e) {
@@ -51,6 +56,8 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public User update(User user) {
+        Objects.requireNonNull(user, "Пользователь не должен быть null");
+
         return executeInTransaction(session -> {
             User updated = session.merge(user);
             logger.info("Updated user with id={}", updated.getId());
@@ -60,6 +67,8 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public boolean deleteById(Long id) {
+        Objects.requireNonNull(id, "Id пользователя не должен быть null");
+
         return executeInTransaction(session -> {
             User user = session.find(User.class, id);
             if (user == null) {
@@ -78,7 +87,7 @@ public class UserDaoImpl implements UserDao {
             T result = callback.execute(session);
             transaction.commit();
             return result;
-        } catch (HibernateException e) {
+        } catch (RuntimeException e) {
             if (transaction != null && transaction.isActive()) {
                 transaction.rollback();
             }
