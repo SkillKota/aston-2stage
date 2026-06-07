@@ -1,6 +1,7 @@
 package homework2.dao;
 
 import homework2.entity.User;
+import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -85,6 +86,16 @@ class UserDaoImplTest {
     }
 
     @Test
+    void createShouldRejectDuplicateEmail() {
+        userDao.create(new User("Иван", "ivan@example.com", 25));
+
+        assertThrows(RuntimeException.class,
+                () -> userDao.create(new User("Мария", "ivan@example.com", 30)));
+
+        assertEquals(1, userDao.findAll().size());
+    }
+
+    @Test
     void findByIdShouldReturnEmptyWhenUserDoesNotExist() {
         Optional<User> user = userDao.findById(1000L);
 
@@ -121,6 +132,20 @@ class UserDaoImplTest {
     }
 
     @Test
+    void updateShouldRejectDuplicateEmail() {
+        User firstUser = userDao.create(new User("Иван", "ivan@example.com", 25));
+        User secondUser = userDao.create(new User("Мария", "maria@example.com", 30));
+        secondUser.setEmail(firstUser.getEmail());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> userDao.update(secondUser));
+
+        assertTrue(hasCause(exception, ConstraintViolationException.class));
+        Optional<User> foundSecondUser = userDao.findById(secondUser.getId());
+        assertTrue(foundSecondUser.isPresent());
+        assertEquals("maria@example.com", foundSecondUser.get().getEmail());
+    }
+
+    @Test
     void deleteByIdShouldRemoveExistingUser() {
         User user = userDao.create(new User("Иван", "ivan@example.com", 25));
 
@@ -145,4 +170,16 @@ class UserDaoImplTest {
         assertThrows(NullPointerException.class, () -> userDao.update(null));
         assertThrows(NullPointerException.class, () -> userDao.deleteById(null));
     }
+
+    private static boolean hasCause(Throwable throwable, Class<? extends Throwable> expectedCause) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (expectedCause.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
 }
