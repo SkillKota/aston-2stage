@@ -1,20 +1,20 @@
 # AstonStudyV2
 
-## Домашнее задание 3: User Service
+## Домашнее задание 4: User Service API
 
-Консольное Java-приложение для управления пользователями. Приложение использует Hibernate ORM и PostgreSQL без Spring.
+Spring Boot REST API для управления пользователями. Приложение использует Spring Web, Spring Data JPA и PostgreSQL.
 
 ## Что используется
 
 - Java 21
 - Maven
-- Hibernate ORM
+- Spring Boot
+- Spring Web
+- Spring Data JPA
 - PostgreSQL 16
 - Docker Compose
-- SLF4J + Logback
 - JUnit 5
 - Mockito
-- Testcontainers
 
 Локально устанавливать Maven и PostgreSQL не нужно. Maven используется внутри Docker-образа при сборке приложения, а PostgreSQL запускается в отдельном контейнере.
 
@@ -26,13 +26,35 @@
 docker compose build app
 ```
 
-Запустить консольное приложение:
+Запустить приложение:
 
 ```bash
-docker compose run --rm app
+docker compose up app
 ```
 
-При запуске приложения Docker Compose автоматически поднимает PostgreSQL, если контейнер с базой еще не запущен.
+API будет доступно на `http://localhost:8080/api/users`.
+
+## API
+
+```text
+GET    /api/users
+GET    /api/users/{id}
+POST   /api/users
+PUT    /api/users/{id}
+DELETE /api/users/{id}
+```
+
+Тело запроса для создания и обновления:
+
+```json
+{
+  "name": "Иван",
+  "email": "ivan@example.com",
+  "age": 25
+}
+```
+
+Контроллер возвращает DTO, entity наружу не отдается.
 
 ## Тесты
 
@@ -42,7 +64,7 @@ docker compose run --rm app
 docker compose run --rm tests
 ```
 
-Тесты DAO-слоя используют Testcontainers и поднимают отдельный PostgreSQL-контейнер. Тесты service-слоя используют Mockito и не подключаются к базе данных.
+API-тесты используют MockMvc. Тесты service-слоя используют Mockito и не подключаются к базе данных.
 
 ## Остановка
 
@@ -60,7 +82,7 @@ docker compose down -v
 
 ## Контейнеры
 
-- `app` - консольное Java-приложение `user-service`
+- `app` - Spring Boot приложение `user-service`
 - `postgres` - база данных PostgreSQL 16
 - `tests` - запуск тестов через Maven
 
@@ -70,17 +92,6 @@ docker compose down -v
 DB_URL=jdbc:postgresql://postgres:5432/user_service
 DB_USER=postgres
 DB_PASSWORD=postgres
-```
-
-## Консольное меню
-
-```text
-1. Создать пользователя
-2. Найти пользователя по id
-3. Показать всех пользователей
-4. Обновить пользователя
-5. Удалить пользователя
-0. Выход
 ```
 
 ## Сущность User
@@ -102,19 +113,21 @@ created_at
 ```text
 src/main/java/homework2
   Main.java
-  config/HibernateUtil.java
-  console/ConsoleMenu.java
-  dao/UserDao.java
-  dao/UserDaoImpl.java
+  controller/UserController.java
+  controller/GlobalExceptionHandler.java
+  dto/UserRequestDto.java
+  dto/UserResponseDto.java
   entity/User.java
+  mapper/UserMapper.java
+  repository/UserRepository.java
   service/UserService.java
   service/UserServiceImpl.java
 
 src/main/resources
-  hibernate.cfg.xml
+  application.properties
   logback.xml
 
 src/test/java/homework2
-  dao/UserDaoImplTest.java
+  controller/UserControllerTest.java
   service/UserServiceImplTest.java
 ```
