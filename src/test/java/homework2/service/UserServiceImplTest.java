@@ -1,24 +1,29 @@
 package homework2.service;
 
+import homework2.dto.UserRequestDto;
+import homework2.dto.UserResponseDto;
 import homework2.entity.User;
 import homework2.repository.UserRepository;
+import homework2.validator.UserValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,17 +32,29 @@ class UserServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
+    @Mock
+    private UserValidator userValidator;
+
     private UserServiceImpl userService;
+
+    @BeforeEach
+    void setUp() {
+        userService = new UserServiceImpl(userRepository, userValidator);
+    }
 
     @Test
     void createUserShouldPassNewUserToRepository() {
-        User savedUser = new User("Иван", "ivan@example.com", 25);
+        UserRequestDto request = new UserRequestDto("Иван", "ivan@example.com", 25);
+        User savedUser = user(1L, "Иван", "ivan@example.com", 25);
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
-        User result = userService.createUser("Иван", "ivan@example.com", 25);
+        UserResponseDto result = userService.createUser(request);
 
-        assertSame(savedUser, result);
+        assertEquals(1L, result.id());
+        assertEquals("Иван", result.name());
+        assertEquals("ivan@example.com", result.email());
+        assertEquals(25, result.age());
+        verify(userValidator).validate(request);
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("Иван", captor.getValue().getName());
@@ -47,50 +64,63 @@ class UserServiceImplTest {
 
     @Test
     void createUserShouldRejectInvalidData() {
-        assertThrows(IllegalArgumentException.class, () -> userService.createUser("", "ivan@example.com", 25));
-        assertThrows(IllegalArgumentException.class, () -> userService.createUser("Иван", "", 25));
-        assertThrows(IllegalArgumentException.class, () -> userService.createUser("Иван", "ivan@example.com", 0));
+        UserValidator validator = new UserValidator();
+        UserServiceImpl service = new UserServiceImpl(userRepository, validator);
 
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createUser(new UserRequestDto("", "ivan@example.com", 25)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createUser(new UserRequestDto("Иван", "", 25)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createUser(new UserRequestDto("Иван", "ivan@example.com", 0)));
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
     void findUserByIdShouldReturnRepositoryResult() {
-        User user = new User("Мария", "maria@example.com", 30);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L, "Мария", "maria@example.com", 30)));
 
-        Optional<User> result = userService.findUserById(1L);
+        Optional<UserResponseDto> result = userService.findUserById(1L);
 
         assertTrue(result.isPresent());
-        assertSame(user, result.get());
+        assertEquals(1L, result.get().id());
+        assertEquals("maria@example.com", result.get().email());
         verify(userRepository).findById(1L);
+        verifyNoInteractions(userValidator);
     }
 
     @Test
     void findAllUsersShouldReturnRepositoryResult() {
         List<User> users = List.of(
-                new User("Иван", "ivan@example.com", 25),
-                new User("Мария", "maria@example.com", 30)
+                user(1L, "Иван", "ivan@example.com", 25),
+                user(2L, "Мария", "maria@example.com", 30)
         );
         when(userRepository.findAll()).thenReturn(users);
 
-        List<User> result = userService.findAllUsers();
+        List<UserResponseDto> result = userService.findAllUsers();
 
-        assertSame(users, result);
+        assertEquals(2, result.size());
+        assertEquals("ivan@example.com", result.get(0).email());
+        assertEquals("maria@example.com", result.get(1).email());
         verify(userRepository).findAll();
+        verifyNoInteractions(userValidator);
     }
 
     @Test
     void updateUserShouldUpdateExistingUser() {
-        User existingUser = new User("Старое имя", "old@example.com", 20);
-        User updatedUser = new User("Новое имя", "new@example.com", 21);
+        UserRequestDto request = new UserRequestDto("Новое имя", "new@example.com", 21);
+        User existingUser = user(1L, "Старое имя", "old@example.com", 20);
+        User updatedUser = user(1L, "Новое имя", "new@example.com", 21);
         when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
         when(userRepository.save(existingUser)).thenReturn(updatedUser);
 
-        Optional<User> result = userService.updateUser(1L, "Новое имя", "new@example.com", 21);
+        Optional<UserResponseDto> result = userService.updateUser(1L, request);
 
         assertTrue(result.isPresent());
-        assertSame(updatedUser, result.get());
+        assertEquals(1L, result.get().id());
+        assertEquals("Новое имя", result.get().name());
+        assertEquals("new@example.com", result.get().email());
+        verify(userValidator).validate(request);
         assertEquals("Новое имя", existingUser.getName());
         assertEquals("new@example.com", existingUser.getEmail());
         assertEquals(21, existingUser.getAge());
@@ -100,11 +130,13 @@ class UserServiceImplTest {
 
     @Test
     void updateUserShouldReturnEmptyWhenUserNotFound() {
+        UserRequestDto request = new UserRequestDto("Имя", "user@example.com", 22);
         when(userRepository.findById(100L)).thenReturn(Optional.empty());
 
-        Optional<User> result = userService.updateUser(100L, "Имя", "user@example.com", 22);
+        Optional<UserResponseDto> result = userService.updateUser(100L, request);
 
         assertFalse(result.isPresent());
+        verify(userValidator).validate(request);
         verify(userRepository).findById(100L);
         verify(userRepository, never()).save(any(User.class));
     }
@@ -133,9 +165,15 @@ class UserServiceImplTest {
 
     @Test
     void methodsShouldRejectNullArguments() {
-        assertThrows(NullPointerException.class, () -> new UserServiceImpl(null));
-        assertThrows(NullPointerException.class, () -> userService.findUserById(null));
-        assertThrows(NullPointerException.class, () -> userService.updateUser(null, "Имя", "user@example.com", 22));
-        assertThrows(NullPointerException.class, () -> userService.deleteUser(null));
+        UserValidator validator = new UserValidator();
+
+        assertThrows(IllegalArgumentException.class, () -> validator.validate(null));
+    }
+
+    private static User user(Long id, String name, String email, Integer age) {
+        User user = new User(name, email, age);
+        ReflectionTestUtils.setField(user, "id", id);
+        ReflectionTestUtils.setField(user, "createdAt", LocalDateTime.of(2026, 6, 7, 10, 0));
+        return user;
     }
 }

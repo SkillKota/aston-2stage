@@ -2,7 +2,6 @@ package homework2.controller;
 
 import homework2.dto.UserRequestDto;
 import homework2.dto.UserResponseDto;
-import homework2.mapper.UserMapper;
 import homework2.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -29,25 +28,19 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserResponseDto> createUser(@Valid @RequestBody UserRequestDto request) {
-        UserResponseDto response = UserMapper.toResponseDto(
-                userService.createUser(request.name(), request.email(), request.age())
-        );
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDto> findUserById(@PathVariable Long id) {
         return userService.findUserById(id)
-                .map(UserMapper::toResponseDto)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping
     public List<UserResponseDto> findAllUsers() {
-        return userService.findAllUsers().stream()
-                .map(UserMapper::toResponseDto)
-                .toList();
+        return userService.findAllUsers();
     }
 
     @PutMapping("/{id}")
@@ -55,8 +48,7 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UserRequestDto request
     ) {
-        return userService.updateUser(id, request.name(), request.email(), request.age())
-                .map(UserMapper::toResponseDto)
+        return userService.updateUser(id, request)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

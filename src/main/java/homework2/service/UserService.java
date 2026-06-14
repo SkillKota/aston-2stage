@@ -1,18 +1,19 @@
 package homework2.service;
 
-import homework2.entity.User;
+import homework2.dto.UserRequestDto;
+import homework2.dto.UserResponseDto;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface UserService {
-    User createUser(String name, String email, Integer age);
+    UserResponseDto createUser(UserRequestDto request);
 
-    Optional<User> findUserById(Long id);
+    Optional<UserResponseDto> findUserById(Long id);
 
-    List<User> findAllUsers();
+    List<UserResponseDto> findAllUsers();
 
-    Optional<User> updateUser(Long id, String name, String email, Integer age);
+    Optional<UserResponseDto> updateUser(Long id, UserRequestDto request);
 
     boolean deleteUser(Long id);
 }

@@ -2,14 +2,13 @@ package homework2.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import homework2.dto.UserRequestDto;
-import homework2.entity.User;
+import homework2.dto.UserResponseDto;
 import homework2.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -38,12 +37,12 @@ class UserControllerTest {
 
     @Test
     void createUserShouldReturnCreatedUserDto() throws Exception {
-        User user = user(1L, "Иван", "ivan@example.com", 25);
-        when(userService.createUser("Иван", "ivan@example.com", 25)).thenReturn(user);
+        UserRequestDto request = new UserRequestDto("Иван", "ivan@example.com", 25);
+        when(userService.createUser(request)).thenReturn(user(1L, "Иван", "ivan@example.com", 25));
 
         mockMvc.perform(post("/api/users")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(new UserRequestDto("Иван", "ivan@example.com", 25))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Иван"))
@@ -85,12 +84,12 @@ class UserControllerTest {
 
     @Test
     void updateUserShouldReturnUpdatedUserDto() throws Exception {
-        User user = user(1L, "Петр", "petr@example.com", 31);
-        when(userService.updateUser(1L, "Петр", "petr@example.com", 31)).thenReturn(Optional.of(user));
+        UserRequestDto request = new UserRequestDto("Петр", "petr@example.com", 31);
+        when(userService.updateUser(1L, request)).thenReturn(Optional.of(user(1L, "Петр", "petr@example.com", 31)));
 
         mockMvc.perform(put("/api/users/1")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(new UserRequestDto("Петр", "petr@example.com", 31))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Петр"))
@@ -100,11 +99,12 @@ class UserControllerTest {
 
     @Test
     void updateUserShouldReturnNotFound() throws Exception {
-        when(userService.updateUser(100L, "Петр", "petr@example.com", 31)).thenReturn(Optional.empty());
+        UserRequestDto request = new UserRequestDto("Петр", "petr@example.com", 31);
+        when(userService.updateUser(100L, request)).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/api/users/100")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(new UserRequestDto("Петр", "petr@example.com", 31))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
     }
 
@@ -128,27 +128,30 @@ class UserControllerTest {
     void createUserShouldRejectInvalidRequest() throws Exception {
         mockMvc.perform(post("/api/users")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(new UserRequestDto("", "bad-email", 0))))
+                        .content("""
+                                {
+                                  "name": "",
+                                  "email": "bad-email",
+                                  "age": 0
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Некорректные данные пользователя"));
     }
 
     @Test
     void createUserShouldReturnConflictWhenEmailAlreadyExists() throws Exception {
-        when(userService.createUser("Иван", "ivan@example.com", 25))
-                .thenThrow(new DataIntegrityViolationException("duplicate email"));
+        UserRequestDto request = new UserRequestDto("Иван", "ivan@example.com", 25);
+        when(userService.createUser(request)).thenThrow(new DataIntegrityViolationException("duplicate email"));
 
         mockMvc.perform(post("/api/users")
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(new UserRequestDto("Иван", "ivan@example.com", 25))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Email уже используется"));
     }
 
-    private static User user(Long id, String name, String email, Integer age) {
-        User user = new User(name, email, age);
-        ReflectionTestUtils.setField(user, "id", id);
-        ReflectionTestUtils.setField(user, "createdAt", LocalDateTime.of(2026, 6, 7, 10, 0));
-        return user;
+    private static UserResponseDto user(Long id, String name, String email, Integer age) {
+        return new UserResponseDto(id, name, email, age, LocalDateTime.of(2026, 6, 7, 10, 0));
     }
 }
