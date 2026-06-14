@@ -17,17 +17,25 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserValidator userValidator;
+    private final UserEventProducer userEventProducer;
 
-    public UserServiceImpl(UserRepository userRepository, UserValidator userValidator) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            UserValidator userValidator,
+            UserEventProducer userEventProducer
+    ) {
         this.userRepository = userRepository;
         this.userValidator = userValidator;
+        this.userEventProducer = userEventProducer;
     }
 
     @Override
     public UserResponseDto createUser(UserRequestDto request) {
         userValidator.validate(request);
         User user = new User(request.name(), request.email(), request.age());
-        return UserMapper.toResponseDto(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        userEventProducer.sendUserCreated(savedUser.getEmail());
+        return UserMapper.toResponseDto(savedUser);
     }
 
     @Override
@@ -63,10 +71,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
+        Optional<User> existingUser = userRepository.findById(id);
+        if (existingUser.isEmpty()) {
             return false;
         }
-        userRepository.deleteById(id);
+        String email = existingUser.get().getEmail();
+        userRepository.delete(existingUser.get());
+        userEventProducer.sendUserDeleted(email);
         return true;
     }
 }

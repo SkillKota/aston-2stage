@@ -1,8 +1,13 @@
 # AstonStudyV2
 
-## Домашнее задание 4: User Service API
+## Домашнее задание 5: User Service + Notification Service
 
-Spring Boot REST API для управления пользователями. Приложение использует Spring Web, Spring Data JPA и PostgreSQL.
+Проект переведен в multi-module Maven и содержит два Spring Boot микросервиса:
+
+- `user-service` - REST API для управления пользователями, PostgreSQL, Kafka producer.
+- `notification-service` - Kafka consumer и REST API для отправки email-уведомлений.
+
+При создании или удалении пользователя `user-service` отправляет событие в Kafka с операцией и email. `notification-service` получает событие и отправляет письмо пользователю.
 
 ## Что используется
 
@@ -11,30 +16,39 @@ Spring Boot REST API для управления пользователями. �
 - Spring Boot
 - Spring Web
 - Spring Data JPA
+- Spring Kafka
+- Spring Mail
 - PostgreSQL 16
+- Kafka
 - Docker Compose
-- JUnit 5
-- Mockito
+- MockMvc
+- GreenMail
 
-Локально устанавливать Maven и PostgreSQL не нужно. Maven используется внутри Docker-образа при сборке приложения, а PostgreSQL запускается в отдельном контейнере.
+Локально устанавливать Maven, PostgreSQL, Kafka или SMTP-сервер не нужно. Все запускается через Docker.
 
 ## Запуск
 
-Собрать Docker-образ приложения:
+Собрать Docker-образы:
 
 ```bash
-docker compose build app
+docker compose build user-service notification-service
 ```
 
-Запустить приложение:
+Запустить инфраструктуру и оба сервиса:
 
 ```bash
-docker compose up app
+docker compose up postgres kafka mailpit user-service notification-service
 ```
 
-API будет доступно на `http://localhost:8080/api/users`.
+Сервисы будут доступны:
 
-## API
+```text
+user-service:         http://localhost:8080
+notification-service: http://localhost:8081
+Mailpit UI:           http://localhost:8025
+```
+
+## User API
 
 ```text
 GET    /api/users
@@ -54,17 +68,88 @@ DELETE /api/users/{id}
 }
 ```
 
-Контроллер возвращает DTO, entity наружу не отдается.
+При `POST /api/users` отправляется Kafka-событие:
+
+```json
+{
+  "operation": "CREATED",
+  "email": "ivan@example.com"
+}
+```
+
+При `DELETE /api/users/{id}` отправляется Kafka-событие:
+
+```json
+{
+  "operation": "DELETED",
+  "email": "ivan@example.com"
+}
+```
+
+## Notification API
+
+Ручная отправка email без Kafka:
+
+```text
+POST /api/notifications/email
+```
+
+Тело запроса:
+
+```json
+{
+  "email": "ivan@example.com",
+  "operation": "CREATED"
+}
+```
+
+Для `CREATED` отправляется текст:
+
+```text
+Здравствуйте! Ваш аккаунт на сайте ваш сайт был успешно создан.
+```
+
+Для `DELETED` отправляется текст:
+
+```text
+Здравствуйте! Ваш аккаунт был удалён.
+```
+
+Письма в Docker окружении можно смотреть в Mailpit: `http://localhost:8025`.
+
+## Быстрая Проверка
+
+Создать пользователя:
+
+```bash
+curl -X POST http://localhost:8080/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Иван","email":"ivan@example.com","age":25}'
+```
+
+Удалить пользователя:
+
+```bash
+curl -X DELETE http://localhost:8080/api/users/1
+```
+
+Отправить письмо напрямую через `notification-service`:
+
+```bash
+curl -X POST http://localhost:8081/api/notifications/email \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ivan@example.com","operation":"CREATED"}'
+```
 
 ## Тесты
 
-Запустить unit- и integration-тесты:
+Запустить все тесты:
 
 ```bash
-docker compose run --rm tests
+docker compose run --rm tests mvn test
 ```
 
-API-тесты используют MockMvc. Тесты service-слоя используют Mockito и не подключаются к базе данных.
+В `notification-service` интеграционные тесты используют GreenMail: письмо отправляется через реальный `JavaMailSender` в локальный тестовый SMTP-сервер, а тест проверяет получателя и текст.
 
 ## Остановка
 
@@ -74,60 +159,25 @@ API-тесты используют MockMvc. Тесты service-слоя исп�
 docker compose down
 ```
 
-Остановить контейнеры и удалить данные PostgreSQL:
+Остановить контейнеры и удалить данные PostgreSQL/Kafka:
 
 ```bash
 docker compose down -v
 ```
 
-## Контейнеры
-
-- `app` - Spring Boot приложение `user-service`
-- `postgres` - база данных PostgreSQL 16
-- `tests` - запуск тестов через Maven
-
-Настройки подключения к базе передаются в приложение через переменные окружения в `docker-compose.yml`:
+## Структура Проекта
 
 ```text
-DB_URL=jdbc:postgresql://postgres:5432/user_service
-DB_USER=postgres
-DB_PASSWORD=postgres
-```
+pom.xml
+docker-compose.yml
 
-## Сущность User
+user-service/
+  pom.xml
+  Dockerfile
+  src/main/java/homework2
 
-Пользователь содержит поля:
-
-```text
-id
-name
-email
-age
-created_at
-```
-
-Поле `created_at` заполняется автоматически при создании пользователя.
-
-## Структура проекта
-
-```text
-src/main/java/homework2
-  Main.java
-  controller/UserController.java
-  controller/GlobalExceptionHandler.java
-  dto/UserRequestDto.java
-  dto/UserResponseDto.java
-  entity/User.java
-  mapper/UserMapper.java
-  repository/UserRepository.java
-  service/UserService.java
-  service/UserServiceImpl.java
-
-src/main/resources
-  application.properties
-  logback.xml
-
-src/test/java/homework2
-  controller/UserControllerTest.java
-  service/UserServiceImplTest.java
+notification-service/
+  pom.xml
+  Dockerfile
+  src/main/java/notification
 ```

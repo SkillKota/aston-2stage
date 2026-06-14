@@ -35,11 +35,14 @@ class UserServiceImplTest {
     @Mock
     private UserValidator userValidator;
 
+    @Mock
+    private UserEventProducer userEventProducer;
+
     private UserServiceImpl userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserServiceImpl(userRepository, userValidator);
+        userService = new UserServiceImpl(userRepository, userValidator, userEventProducer);
     }
 
     @Test
@@ -60,12 +63,13 @@ class UserServiceImplTest {
         assertEquals("Иван", captor.getValue().getName());
         assertEquals("ivan@example.com", captor.getValue().getEmail());
         assertEquals(25, captor.getValue().getAge());
+        verify(userEventProducer).sendUserCreated("ivan@example.com");
     }
 
     @Test
     void createUserShouldRejectInvalidData() {
         UserValidator validator = new UserValidator();
-        UserServiceImpl service = new UserServiceImpl(userRepository, validator);
+        UserServiceImpl service = new UserServiceImpl(userRepository, validator, userEventProducer);
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.createUser(new UserRequestDto("", "ivan@example.com", 25)));
@@ -74,6 +78,7 @@ class UserServiceImplTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.createUser(new UserRequestDto("Иван", "ivan@example.com", 0)));
         verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(userEventProducer);
     }
 
     @Test
@@ -143,24 +148,27 @@ class UserServiceImplTest {
 
     @Test
     void deleteUserShouldDeleteExistingUser() {
-        when(userRepository.existsById(1L)).thenReturn(true);
+        User user = user(1L, "Иван", "ivan@example.com", 25);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         boolean result = userService.deleteUser(1L);
 
         assertTrue(result);
-        verify(userRepository).existsById(1L);
-        verify(userRepository).deleteById(1L);
+        verify(userRepository).findById(1L);
+        verify(userRepository).delete(user);
+        verify(userEventProducer).sendUserDeleted("ivan@example.com");
     }
 
     @Test
     void deleteUserShouldReturnFalseWhenUserNotFound() {
-        when(userRepository.existsById(100L)).thenReturn(false);
+        when(userRepository.findById(100L)).thenReturn(Optional.empty());
 
         boolean result = userService.deleteUser(100L);
 
         assertFalse(result);
-        verify(userRepository).existsById(100L);
-        verify(userRepository, never()).deleteById(100L);
+        verify(userRepository).findById(100L);
+        verify(userRepository, never()).delete(any(User.class));
+        verifyNoInteractions(userEventProducer);
     }
 
     @Test
