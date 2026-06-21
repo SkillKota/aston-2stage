@@ -1,10 +1,10 @@
 # AstonStudyV2
 
-## Домашнее задание 5: User Service + Notification Service
+## Домашнее задание 6: Swagger и HATEOAS
 
 Проект переведен в multi-module Maven и содержит два Spring Boot микросервиса:
 
-- `user-service` - REST API для управления пользователями, PostgreSQL, Kafka producer.
+- `user-service` - REST API для управления пользователями, PostgreSQL, Kafka producer, Swagger UI, HATEOAS.
 - `notification-service` - Kafka consumer и REST API для отправки email-уведомлений.
 
 При создании или удалении пользователя `user-service` отправляет событие в Kafka с операцией и email. `notification-service` получает событие и отправляет письмо пользователю.
@@ -18,6 +18,8 @@
 - Spring Data JPA
 - Spring Kafka
 - Spring Mail
+- Spring HATEOAS
+- Springdoc OpenAPI
 - PostgreSQL 16
 - Kafka
 - Docker Compose
@@ -46,6 +48,7 @@ docker compose up postgres kafka mailpit user-service notification-service
 user-service:         http://localhost:8080
 notification-service: http://localhost:8081
 Mailpit UI:           http://localhost:8025
+Swagger UI:           http://localhost:8080/swagger-ui/index.html
 ```
 
 ## User API
@@ -58,6 +61,12 @@ PUT    /api/users/{id}
 DELETE /api/users/{id}
 ```
 
+Swagger-документация доступна по адресу:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
 Тело запроса для создания и обновления:
 
 ```json
@@ -65,6 +74,32 @@ DELETE /api/users/{id}
   "name": "Иван",
   "email": "ivan@example.com",
   "age": 25
+}
+```
+
+Ответы `user-service` содержат HATEOAS-ссылки в поле `_links`. Пример ответа одиночного пользователя:
+
+```json
+{
+  "id": 1,
+  "name": "Иван",
+  "email": "ivan@example.com",
+  "age": 25,
+  "createdAt": "2026-06-21T10:00:00",
+  "_links": {
+    "self": {
+      "href": "http://localhost:8080/api/users/1"
+    },
+    "users": {
+      "href": "http://localhost:8080/api/users"
+    },
+    "update": {
+      "href": "http://localhost:8080/api/users/1"
+    },
+    "delete": {
+      "href": "http://localhost:8080/api/users/1"
+    }
+  }
 }
 ```
 
