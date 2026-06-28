@@ -13,7 +13,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest(properties = "spring.kafka.listener.auto-startup=false")
+@SpringBootTest(properties = {
+        "spring.kafka.listener.auto-startup=false",
+        "eureka.client.enabled=false",
+        "spring.cloud.config.enabled=false",
+        "spring.cloud.discovery.enabled=false"
+})
 class NotificationMailServiceTest {
     @RegisterExtension
     static GreenMailExtension greenMail = new GreenMailExtension(new ServerSetup(3025, null, "smtp"));

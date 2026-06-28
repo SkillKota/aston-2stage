@@ -26,7 +26,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UserController.class)
+@WebMvcTest(
+        value = UserController.class,
+        properties = {
+                "eureka.client.enabled=false",
+                "spring.cloud.config.enabled=false",
+                "spring.cloud.discovery.enabled=false"
+        }
+)
 @Import(UserModelAssembler.class)
 class UserControllerTest {
     @Autowired

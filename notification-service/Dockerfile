@@ -4,6 +4,9 @@ WORKDIR /app
 COPY pom.xml .
 COPY user-service/pom.xml user-service/pom.xml
 COPY notification-service/pom.xml notification-service/pom.xml
+COPY config-server/pom.xml config-server/pom.xml
+COPY discovery-server/pom.xml discovery-server/pom.xml
+COPY api-gateway/pom.xml api-gateway/pom.xml
 RUN mvn -q -pl notification-service dependency:go-offline
 
 COPY notification-service/src notification-service/src

@@ -38,17 +38,48 @@ services:
       - "8025:8025"
       - "1025:1025"
 
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: config-server-app
+    environment:
+      CONFIG_SEARCH_LOCATIONS: file:/config-repo
+    volumes:
+      - ./config-repo:/config-repo:ro
+    ports:
+      - "8888:8888"
+
+  discovery-server:
+    build:
+      context: .
+      dockerfile: discovery-server/Dockerfile
+    container_name: discovery-server-app
+    depends_on:
+      config-server:
+        condition: service_started
+    environment:
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka/
+    ports:
+      - "8761:8761"
+
   user-service:
     build:
       context: .
       dockerfile: user-service/Dockerfile
     container_name: user-service-app
     depends_on:
+      config-server:
+        condition: service_started
+      discovery-server:
+        condition: service_started
       postgres:
         condition: service_healthy
       kafka:
         condition: service_started
     environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/user_service
       DB_USER: postgres
       DB_PASSWORD: postgres
@@ -63,11 +94,17 @@ services:
       dockerfile: notification-service/Dockerfile
     container_name: notification-service-app
     depends_on:
+      config-server:
+        condition: service_started
+      discovery-server:
+        condition: service_started
       kafka:
         condition: service_started
       mailpit:
         condition: service_started
     environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka/
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       USER_EVENTS_TOPIC: user-events
       MAIL_HOST: mailpit
@@ -75,6 +112,26 @@ services:
       MAIL_FROM: no-reply@example.com
     ports:
       - "8081:8081"
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway-app
+    depends_on:
+      config-server:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+      user-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka/
+    ports:
+      - "8088:8088"
 
   tests:
     image: maven:3.9.8-eclipse-temurin-21
